@@ -77,7 +77,7 @@ void check_result(int r, ssh_session this_session)
 static void verify_server(ssh_session this_sess)
 {
   // Duh this needs to be better
-  switch (ssh_is_server_known(this_sess)) {
+  switch (ssh_session_is_known_server(this_sess)) {
   case SSH_SERVER_KNOWN_OK:
     break;
   default:
