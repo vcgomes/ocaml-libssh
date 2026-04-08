@@ -23,8 +23,8 @@ module Client : sig
 
   (** Different kinds of authentication accepted by libssh *)
   type auth =
-    | Auto        (** Authenticate using the Ssh agent, assuming its running *)
-    | Interactive (** Type in the password on the command line*)
+    | Auto            (** Authenticate using the SSH agent *)
+    | Password of string (** Authenticate with the given password *)
 
   (** Options needed when connecting over ssh *)
   type options = { host: string;

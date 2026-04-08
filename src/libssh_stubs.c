@@ -221,8 +221,8 @@ CAMLprim value libssh_ml_ssh_connect(value opts, value sess_val)
   CAMLparam2(opts, sess_val);
   CAMLlocal5(hostname_val, username_val, port_val, log_level_val, auth_val);
 
-  char *hostname, *password;
-  int port, log_level, auth;
+  char *hostname;
+  int port, log_level;
   size_t len;
   ssh_session this_sess;
 
@@ -242,7 +242,6 @@ CAMLprim value libssh_ml_ssh_connect(value opts, value sess_val)
 
   port = Int_val(port_val);
   log_level = Int_val(log_level_val);
-  auth = Int_val(auth_val);
 
   check_result(ssh_options_set(this_sess, SSH_OPTIONS_HOST, hostname),
   	       this_sess);
@@ -263,16 +262,17 @@ CAMLprim value libssh_ml_ssh_connect(value opts, value sess_val)
 
   check_result(ssh_connect(this_sess), this_sess);
   verify_server(this_sess);
-  switch (auth) {
-  case 0:
+
+  /* auth is Auto (Val_int 0) or Password of string (block, tag 0, field 0). */
+  if (Is_long(auth_val)) {
     check_result(ssh_userauth_publickey_auto(this_sess, NULL, NULL), this_sess);
-    break;
-  case 1:
-    password = getpass("Enter Password: ");
-    if (ssh_userauth_password(this_sess, NULL, password) != SSH_AUTH_SUCCESS) {
-      printf("Error: %s\n", ssh_get_error(this_sess));
+  } else {
+    char *password = caml_stat_strdup(String_val(Field(auth_val, 0)));
+    int rc = ssh_userauth_password(this_sess, NULL, password);
+    caml_stat_free(password);
+    if (rc != SSH_AUTH_SUCCESS) {
+      caml_failwith(ssh_get_error(this_sess));
     }
-    free(password);
   }
 
   CAMLreturn(Val_unit);

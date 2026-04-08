@@ -11,7 +11,7 @@ module Client = struct
 
   type auth =
     | Auto
-    | Interactive
+    | Password of string
 
   type options = { host: string;
                    username : string option;
