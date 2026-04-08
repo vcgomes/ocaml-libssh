@@ -20,7 +20,12 @@
 
 #define BUFFERSIZE 256
 
-struct result { int status; char *output; };
+struct result {
+  int status;
+  int err;
+  char *stdout;
+  char *stderr;
+};
 
 void clean_up_ssh_memory (value a_session)
 {
@@ -83,49 +88,66 @@ static struct result exec_remote_command(char *this_command, ssh_session session
   ssh_channel channel;
   int rc;
   char buffer[BUFFERSIZE];
-  char *output;
+  char *output = NULL;
+  char *error = NULL;
   int nbytes;
-  int nread = 0;
-  int outputsize;
+  int outlen = 0, outsize = BUFFERSIZE;
+  int errlen = 0, errsize = BUFFERSIZE;
 
   channel = ssh_channel_new(session);
   if (channel == NULL)
-    return (struct result){SSH_ERROR, NULL};
+    return (struct result){SSH_ERROR, errno, NULL, NULL};
+
   rc = ssh_channel_open_session(channel);
   if (rc != SSH_OK) {
     ssh_channel_free(channel);
-    return (struct result){rc, NULL};
+    return (struct result){rc, errno, NULL, NULL};
   }
+
   rc = ssh_channel_request_exec(channel, this_command);
   if (rc != SSH_OK) {
     ssh_channel_close(channel);
     ssh_channel_free(channel);
-    return (struct result){rc, NULL};
+    return (struct result){rc, errno, NULL, NULL};
   }
+
   output = caml_stat_alloc(BUFFERSIZE);
-  outputsize = BUFFERSIZE;
   while ((nbytes = ssh_channel_read(channel, buffer, BUFFERSIZE, 0)) > 0) {
-    if ((nread + nbytes) > outputsize) {
-      output = caml_stat_resize(output, outputsize + BUFFERSIZE);
-      outputsize += BUFFERSIZE;
+    if ((outlen + nbytes) > outsize) {
+      output = caml_stat_resize(output, outsize + BUFFERSIZE);
+      outsize += BUFFERSIZE;
     }
-    strncpy((output + nread), buffer, nbytes);
-    nread += nbytes;
+    strncpy((output + outlen), buffer, nbytes);
+    outlen += nbytes;
   }
+
+  error = caml_stat_alloc(BUFFERSIZE);
+  while ((nbytes = ssh_channel_read(channel, buffer, BUFFERSIZE, 1)) > 0) {
+    if ((errlen + nbytes) > errsize) {
+      error = caml_stat_resize(error, errsize + BUFFERSIZE);
+      errsize += BUFFERSIZE;
+    }
+    strncpy((error + errlen), buffer, nbytes);
+    errlen += nbytes;
+  }
+
   if (nbytes < 0) {
     caml_stat_free(output);
+    caml_stat_free(error);
     ssh_channel_close(channel);
     ssh_channel_free(channel);
-    return (struct result){SSH_ERROR, NULL};
+    return (struct result){SSH_ERROR, errno, NULL, NULL};
   }
 
   ssh_channel_send_eof(channel);
   ssh_channel_close(channel);
   ssh_channel_free(channel);
 
-  output = caml_stat_resize(output, nread + 1);
-  output[nread] = '\0';
-  return (struct result){SSH_OK, output};
+  output = caml_stat_resize(output, outlen + 1);
+  output[outlen] = '\0';
+  error = caml_stat_resize(error, errlen + 1);
+  error[errlen] = '\0';
+  return (struct result){SSH_OK, 0, output, error};
 }
 
 CAMLprim value libssh_ml_ssh_exec(value command_val, value sess_val)
@@ -145,8 +167,13 @@ CAMLprim value libssh_ml_ssh_exec(value command_val, value sess_val)
   this_sess = (ssh_session)Data_custom_val(sess_val);
 
   struct result this_result = exec_remote_command(command, this_sess);
-  output_val = caml_copy_string(this_result.output);
-  free(this_result.output);
+
+  if (this_result.status != SSH_OK) {
+    caml_failwith("Command execution failed");
+  }
+
+  output_val = caml_copy_string(this_result.stdout);
+  caml_stat_free(this_result.stdout);
   CAMLreturn(output_val);
 }
 
@@ -228,8 +255,8 @@ CAMLprim value libssh_ml_remote_shell(value produce, value consume, value sess_v
 
   struct result r = exec_remote_command(copied, this_sess);
 
-  caml_callback(consume, caml_copy_string(r.output));
-  free(copied);
+  caml_callback(consume, caml_copy_string(r.stdout));
+  caml_stat_free(copied);
   CAMLreturn(Val_unit);
 }
 
