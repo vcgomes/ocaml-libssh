@@ -1,9 +1,11 @@
 (executable
  (name r_test)
+ (modules r_test)
  (libraries ssh))
 
 (test
  (name test_ssh)
+ (modules test_ssh)
  (libraries ssh))
 
 (cram
