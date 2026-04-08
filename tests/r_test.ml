@@ -6,8 +6,6 @@
 (*    "rm -rf /cores/*"] *)
 (*   |> List.iter (fun c -> Sys.command c |> ignore) *)
 
-open Ssh.Client
-
 let () =
   print_string "SSH version is: "; Ssh.version () |> print_endline;
   let a_session = Ssh.create () in
