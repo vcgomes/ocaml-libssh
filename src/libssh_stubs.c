@@ -68,10 +68,13 @@ CAMLprim value libssh_ml_ssh_init(void)
 void check_result(int r, ssh_session this_session)
 {
   if (r != SSH_OK) {
+    /* Copy error string before freeing the session that owns it. */
+    char error_msg[256];
+    strncpy(error_msg, ssh_get_error(this_session), sizeof(error_msg) - 1);
+    error_msg[sizeof(error_msg) - 1] = '\0';
     ssh_disconnect(this_session);
     ssh_free(this_session);
-    printf("About to fail hard, error code: %d\n", r);
-    caml_failwith(ssh_get_error(this_session));
+    caml_failwith(error_msg);
   }
 }
 
