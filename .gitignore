@@ -2,6 +2,9 @@ _build
 *.native
 *.byte
 *.docdir
+*~
+\#*#
+.#*
 
 tests/*.cmi
 tests/*.cmt
