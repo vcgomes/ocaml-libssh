@@ -23,6 +23,8 @@
 struct result {
   int status;
   int err;
+  int exit_code;       /* remote command exit code; -1 if signaled */
+  char *signal_name;   /* signal name if process was signaled, else NULL */
   char *stdout;
   char *stderr;
 };
@@ -96,19 +98,19 @@ static struct result exec_remote_command(char *this_command, ssh_session session
 
   channel = ssh_channel_new(session);
   if (channel == NULL)
-    return (struct result){SSH_ERROR, errno, NULL, NULL};
+    return (struct result){SSH_ERROR, errno, -1, NULL, NULL, NULL};
 
   rc = ssh_channel_open_session(channel);
   if (rc != SSH_OK) {
     ssh_channel_free(channel);
-    return (struct result){rc, errno, NULL, NULL};
+    return (struct result){rc, errno, -1, NULL, NULL, NULL};
   }
 
   rc = ssh_channel_request_exec(channel, this_command);
   if (rc != SSH_OK) {
     ssh_channel_close(channel);
     ssh_channel_free(channel);
-    return (struct result){rc, errno, NULL, NULL};
+    return (struct result){rc, errno, -1, NULL, NULL, NULL};
   }
 
   output = caml_stat_alloc(BUFFERSIZE);
@@ -136,18 +138,32 @@ static struct result exec_remote_command(char *this_command, ssh_session session
     caml_stat_free(error);
     ssh_channel_close(channel);
     ssh_channel_free(channel);
-    return (struct result){SSH_ERROR, errno, NULL, NULL};
+    return (struct result){SSH_ERROR, errno, -1, NULL, NULL, NULL};
   }
 
   ssh_channel_send_eof(channel);
   ssh_channel_close(channel);
+
+  uint32_t exit_code_u = 0;
+  char *sig_name = NULL;
+  int is_core = 0;
+  int exit_code = -1;
+  char *signal_name = NULL;
+  if (ssh_channel_get_exit_state(channel, &exit_code_u,
+                                 &sig_name, &is_core) == SSH_OK) {
+    if (sig_name) {
+      signal_name = strdup(sig_name);   /* owned by libssh, copy before free */
+    } else {
+      exit_code = (int)exit_code_u;
+    }
+  }
   ssh_channel_free(channel);
 
   output = caml_stat_resize(output, outlen + 1);
   output[outlen] = '\0';
   error = caml_stat_resize(error, errlen + 1);
   error[errlen] = '\0';
-  return (struct result){SSH_OK, 0, output, error};
+  return (struct result){SSH_OK, 0, exit_code, signal_name, output, error};
 }
 
 CAMLprim value libssh_ml_ssh_exec(value command_val, value sess_val)
