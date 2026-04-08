@@ -36,4 +36,16 @@ let () =
     print_result "ls /no_such_path_xyz" r;
     assert (r.Ssh.Client.stdout = "");
     assert (String.length r.Ssh.Client.stderr > 0);
-    assert (r.Ssh.Client.status <> Ssh.Client.Exited 0))
+    assert (r.Ssh.Client.status <> Ssh.Client.Exited 0));
+
+  check "scp: file content arrives intact on the remote side" (fun () ->
+    let content = "hello from r_test\n" in
+    let src = Filename.temp_file "r_test_src" ".txt" in
+    let dst = Filename.temp_file "r_test_dst" ".txt" in
+    (let oc = open_out src in output_string oc content; close_out oc);
+    Ssh.Client.scp ~src_path:src ~dest_path:dst a_session;
+    let r = Ssh.Client.exec ~command:("cat " ^ dst) a_session in
+    Sys.remove src;
+    let _ = Ssh.Client.exec ~command:("rm -f " ^ dst) a_session in
+    assert (r.Ssh.Client.stdout = content);
+    assert (r.Ssh.Client.status = Ssh.Client.Exited 0))
