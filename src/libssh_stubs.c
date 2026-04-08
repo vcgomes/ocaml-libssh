@@ -7,6 +7,7 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 // OCaml declarations
 #include <caml/mlvalues.h>
 #include <caml/alloc.h>
@@ -304,54 +305,66 @@ CAMLprim value libssh_ml_remote_shell(value produce, value consume, value sess_v
   CAMLreturn(Val_unit);
 }
 
-static ssh_scp prepare(ssh_session sess)
-{
-  ssh_scp scp;
-  int result_code;
-
-  scp = ssh_scp_new(sess, SSH_SCP_WRITE | SSH_SCP_RECURSIVE, ".");
-  if(!scp) {
-    caml_failwith(ssh_get_error(sess));
-  }
-  result_code = ssh_scp_init(scp);
-  check_result(result_code, sess);
-  return scp;
-}
-
-CAMLprim value libssh_ml_ssh_scp(value src_path,
-				 value dest_path,
-				 value sess)
+CAMLprim value libssh_ml_ssh_scp(value src_path, value dest_path, value sess)
 {
   CAMLparam3(src_path, dest_path, sess);
-  size_t len = 0;
-  int result_code = 0;
   char *s_path, *d_path;
   ssh_session this_sess;
-
-  len = caml_string_length(src_path);
-  s_path = caml_stat_strdup(String_val(src_path));
-
-  if (strlen(s_path) != len) {
-    caml_failwith("Problem copying string from OCaml to C");
-  } else len = 0;
-
-  len = caml_string_length(dest_path);
-  d_path = caml_stat_strdup(String_val(dest_path));
-
-  if (strlen(d_path) != len) {
-    caml_failwith("Problem copying string from OCaml to C");
-  } else len = 0;
-
-  this_sess = *(ssh_session *)Data_custom_val(sess);
-  ssh_scp this_scp = prepare(this_sess);
   struct stat file_info;
+  FILE *f;
+  sftp_session sftp;
+  sftp_file remote;
+  char buf[BUFFERSIZE];
+  size_t nread;
+  ssize_t nwritten;
+
+  s_path = caml_stat_strdup(String_val(src_path));
+  d_path = caml_stat_strdup(String_val(dest_path));
+  this_sess = *(ssh_session *)Data_custom_val(sess);
+
   if (stat(s_path, &file_info) != 0) {
-    caml_failwith("Cannot get needed file information for scp");
+    caml_stat_free(s_path); caml_stat_free(d_path);
+    caml_failwith("Cannot stat source file");
   }
 
-  result_code = ssh_scp_push_file(this_scp,
-				  s_path,
-				  file_info.st_size,
-				  666);
+  f = fopen(s_path, "rb");
+  if (!f) {
+    caml_stat_free(s_path); caml_stat_free(d_path);
+    caml_failwith("Cannot open source file");
+  }
+
+  sftp = sftp_new(this_sess);
+  if (!sftp) {
+    fclose(f); caml_stat_free(s_path); caml_stat_free(d_path);
+    caml_failwith(ssh_get_error(this_sess));
+  }
+
+  if (sftp_init(sftp) != SSH_OK) {
+    sftp_free(sftp); fclose(f); caml_stat_free(s_path); caml_stat_free(d_path);
+    caml_failwith(ssh_get_error(this_sess));
+  }
+
+  remote = sftp_open(sftp, d_path, O_WRONLY | O_CREAT | O_TRUNC,
+                     file_info.st_mode & 0777);
+  if (!remote) {
+    sftp_free(sftp); fclose(f); caml_stat_free(s_path); caml_stat_free(d_path);
+    caml_failwith(ssh_get_error(this_sess));
+  }
+
+  while ((nread = fread(buf, 1, sizeof(buf), f)) > 0) {
+    nwritten = sftp_write(remote, buf, nread);
+    if (nwritten < 0 || (size_t)nwritten != nread) {
+      sftp_close(remote); sftp_free(sftp); fclose(f);
+      caml_stat_free(s_path); caml_stat_free(d_path);
+      caml_failwith("sftp_write: short write");
+    }
+  }
+
+  sftp_close(remote);
+  sftp_free(sftp);
+  fclose(f);
+  caml_stat_free(s_path);
+  caml_stat_free(d_path);
+
   CAMLreturn(Val_unit);
 }
