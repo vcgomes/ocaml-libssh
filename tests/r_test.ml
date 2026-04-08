@@ -19,7 +19,7 @@ let () =
   let opts = Ssh.Client.({ host = "localhost";
                            log_level = SSH_LOG_NOLOG;
                            port = 22;
-                           username = Sys.getenv "USER";
+                           username = Some (Sys.getenv "USER");
                            auth = Auto; })
   in
   Ssh.Client.connect opts a_session;

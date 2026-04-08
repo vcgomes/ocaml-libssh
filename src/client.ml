@@ -14,7 +14,7 @@ module Client = struct
     | Interactive
 
   type options = { host: string;
-                   username : string;
+                   username : string option;
                    port : int;
                    log_level : log_level;
                    auth : auth; }

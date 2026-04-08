@@ -221,7 +221,7 @@ CAMLprim value libssh_ml_ssh_connect(value opts, value sess_val)
   CAMLparam2(opts, sess_val);
   CAMLlocal5(hostname_val, username_val, port_val, log_level_val, auth_val);
 
-  char *hostname, *username, *password;
+  char *hostname, *password;
   int port, log_level, auth;
   size_t len;
   ssh_session this_sess;
@@ -238,14 +238,7 @@ CAMLprim value libssh_ml_ssh_connect(value opts, value sess_val)
 
   if (strlen(hostname) != len) {
     caml_failwith("Problem copying string from OCaml to C");
-  } else len = 0;
-
-  username = caml_stat_strdup(String_val(username_val));
-  len = caml_string_length(username_val);
-
-  if (strlen(username) != len) {
-    caml_failwith("Problem copying string from OCaml to C");
-  } else len = 0;
+  }
 
   port = Int_val(port_val);
   log_level = Int_val(log_level_val);
@@ -253,24 +246,30 @@ CAMLprim value libssh_ml_ssh_connect(value opts, value sess_val)
 
   check_result(ssh_options_set(this_sess, SSH_OPTIONS_HOST, hostname),
   	       this_sess);
+  caml_stat_free(hostname);
 
   check_result(ssh_options_set(this_sess, SSH_OPTIONS_LOG_VERBOSITY, &log_level),
   	       this_sess);
 
-  check_result(ssh_options_set(this_sess, SSH_OPTIONS_USER, username),
-  	       this_sess);
+  /* username is string option: Some s sets SSH_OPTIONS_USER, None leaves it
+     to libssh (falls back to ~/.ssh/config or the current system user). */
+  if (Is_block(username_val)) {
+    value uname_str = Field(username_val, 0);
+    char *username = caml_stat_strdup(String_val(uname_str));
+    check_result(ssh_options_set(this_sess, SSH_OPTIONS_USER, username),
+                 this_sess);
+    caml_stat_free(username);
+  }
 
   check_result(ssh_connect(this_sess), this_sess);
   verify_server(this_sess);
-  caml_stat_free(hostname);
-  caml_stat_free(username);
   switch (auth) {
   case 0:
     check_result(ssh_userauth_publickey_auto(this_sess, NULL, NULL), this_sess);
     break;
   case 1:
     password = getpass("Enter Password: ");
-    if (ssh_userauth_password(this_sess, username, password) != SSH_AUTH_SUCCESS) {
+    if (ssh_userauth_password(this_sess, NULL, password) != SSH_AUTH_SUCCESS) {
       printf("Error: %s\n", ssh_get_error(this_sess));
     }
     free(password);

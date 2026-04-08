@@ -28,7 +28,7 @@ module Client : sig
 
   (** Options needed when connecting over ssh *)
   type options = { host: string;
-                   username : string;
+                   username : string option;
                    port : int;
                    log_level : log_level;
                    auth : auth; }
