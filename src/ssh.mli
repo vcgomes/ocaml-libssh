@@ -36,8 +36,19 @@ module Client : sig
   (** Connect and authenticate a ssh connection *)
   val connect : options -> ssh_session -> unit
 
-  (** Execute a remote command, get result as a string *)
-  val exec : command:string -> ssh_session -> string
+  (** Process exit status: normal exit with code, or killed by signal *)
+  type status = [ `Exited of int | `Signaled of string ]
+
+  (** Result of executing a remote command *)
+  type exec_result = {
+    status  : status;   (** How the process exited *)
+    stdout  : string;   (** Standard output *)
+    stderr  : string;   (** Standard error *)
+  }
+
+  (** Execute a remote command and return its output and exit status.
+      Raises [Failure] if the SSH channel operation itself fails. *)
+  val exec : command:string -> ssh_session -> exec_result
 
   val scp : src_path:string -> dest_path:string -> ssh_session -> unit
 

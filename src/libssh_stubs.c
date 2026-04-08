@@ -169,7 +169,7 @@ static struct result exec_remote_command(char *this_command, ssh_session session
 CAMLprim value libssh_ml_ssh_exec(value command_val, value sess_val)
 {
   CAMLparam2(command_val, sess_val);
-  CAMLlocal1(output_val);
+  CAMLlocal4(result_val, status_val, stdout_val, stderr_val);
 
   char *command;
   size_t len;
@@ -183,15 +183,34 @@ CAMLprim value libssh_ml_ssh_exec(value command_val, value sess_val)
   this_sess = (ssh_session)Data_custom_val(sess_val);
 
   struct result this_result = exec_remote_command(command, this_sess);
+  caml_stat_free(command);
 
   if (this_result.status != SSH_OK) {
     caml_failwith("Command execution failed");
   }
 
-  output_val = caml_copy_string(this_result.stdout);
+  /* Build the status variant: `Exited of int | `Signaled of string.
+     OCaml represents these as blocks with tag 0 / tag 1 respectively. */
+  if (this_result.signal_name) {
+    status_val = caml_alloc(1, 1);   /* `Signaled _ */
+    Store_field(status_val, 0, caml_copy_string(this_result.signal_name));
+    free(this_result.signal_name);
+  } else {
+    status_val = caml_alloc(1, 0);   /* `Exited _ */
+    Store_field(status_val, 0, Val_int(this_result.exit_code));
+  }
+
+  stdout_val = caml_copy_string(this_result.stdout);
+  stderr_val = caml_copy_string(this_result.stderr);
   caml_stat_free(this_result.stdout);
   caml_stat_free(this_result.stderr);
-  CAMLreturn(output_val);
+
+  /* exec_result = { status; stdout; stderr } — field order must match OCaml type */
+  result_val = caml_alloc(3, 0);
+  Store_field(result_val, 0, status_val);
+  Store_field(result_val, 1, stdout_val);
+  Store_field(result_val, 2, stderr_val);
+  CAMLreturn(result_val);
 }
 
 CAMLprim value libssh_ml_ssh_connect(value opts, value sess_val)

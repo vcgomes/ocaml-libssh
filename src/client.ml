@@ -21,7 +21,15 @@ module Client = struct
 
   external connect : options -> ssh_session -> unit = "libssh_ml_ssh_connect"
 
-  external exec : command:string -> ssh_session -> string = "libssh_ml_ssh_exec"
+  type status = [ `Exited of int | `Signaled of string ]
+
+  type exec_result = {
+    status  : status;
+    stdout  : string;
+    stderr  : string;
+  }
+
+  external exec : command:string -> ssh_session -> exec_result = "libssh_ml_ssh_exec"
 
   external unsafe_scp :
     string ->
