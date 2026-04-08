@@ -1,4 +1,5 @@
-(lang dune 2.0)
+(lang dune 2.7)
+(cram enable)
 (generate_opam_files)
 
 (source (github vcgomes/ocaml-libssh))
