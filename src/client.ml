@@ -19,7 +19,7 @@ module Client = struct
                    log_level : log_level;
                    auth : auth; }
 
-  external connect : options -> ssh_session -> unit = "libssh_ml_ssh_connect"
+  external connect_exn : options -> ssh_session -> unit = "libssh_ml_ssh_connect"
 
   type status = Exited of int | Signaled of string
 
@@ -29,7 +29,12 @@ module Client = struct
     stderr  : string;
   }
 
-  external exec : command:string -> ssh_session -> exec_result = "libssh_ml_ssh_exec"
+  external exec_exn : command:string -> ssh_session -> exec_result = "libssh_ml_ssh_exec"
+
+  let exec ~command session =
+    match exec_exn ~command session with
+    | r                     -> Ok r
+    | exception Failure msg -> Error msg
 
   external unsafe_scp :
     string ->
@@ -38,7 +43,21 @@ module Client = struct
     unit = "libssh_ml_ssh_scp"
 
   let scp ~src_path ~dest_path h =
-    if not @@ Sys.file_exists src_path then failwith "This file doesn't exist";
-    unsafe_scp src_path dest_path h
+    if not @@ Sys.file_exists src_path then Error "This file doesn't exist"
+    else match unsafe_scp src_path dest_path h with
+    | ()                    -> Ok ()
+    | exception Failure msg -> Error msg
+
+  let to_string r =
+    Result.map (fun r -> (r.stdout, r.status)) r
+
+  let to_lines r =
+    Result.map (fun r ->
+      let lines = String.split_on_char '\n' r.stdout in
+      let lines = match List.rev lines with
+        | "" :: rest -> List.rev rest
+        | _ -> lines
+      in
+      (lines, r.status)) r
 
 end

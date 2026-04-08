@@ -7,9 +7,6 @@ type ssh_session
 (** libssh's version *)
 val version : unit -> string
 
-(** Create a fresh ssh_session *)
-val create : unit -> ssh_session
-
 (** Client side of SSH *)
 module Client : sig
 
@@ -33,9 +30,6 @@ module Client : sig
                    log_level : log_level;
                    auth : auth; }
 
-  (** Connect and authenticate a ssh connection *)
-  val connect : options -> ssh_session -> unit
-
   (** Process exit status: normal exit with code, or killed by signal *)
   type status = Exited of int | Signaled of string
 
@@ -46,10 +40,22 @@ module Client : sig
     stderr  : string;   (** Standard error *)
   }
 
-  (** Execute a remote command and return its output and exit status.
-      Raises [Failure] if the SSH channel operation itself fails. *)
-  val exec : command:string -> ssh_session -> exec_result
+  (** Execute a remote command.
+      Returns [Error msg] if the SSH channel operation itself fails. *)
+  val exec : command:string -> ssh_session -> (exec_result, string) result
 
-  val scp : src_path:string -> dest_path:string -> ssh_session -> unit
+  (** Copy a local file to the remote host.
+      Returns [Error msg] if the source file does not exist or the transfer fails. *)
+  val scp : src_path:string -> dest_path:string -> ssh_session -> (unit, string) result
+
+  (** Extract stdout and exit status from an [exec] result. *)
+  val to_string : (exec_result, string) result -> (string * status, string) result
+
+  (** Split stdout into lines and return with exit status. *)
+  val to_lines : (exec_result, string) result -> (string list * status, string) result
 
 end
+
+(** Allocate a session, connect, and authenticate in one step.
+    Raises [Failure] on connection or authentication failure. *)
+val create : Client.options -> ssh_session

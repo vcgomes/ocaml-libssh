@@ -2,4 +2,4 @@ type ssh_session
 
 external version : unit -> string = "libssh_ml_version"
 
-external create : unit -> ssh_session = "libssh_ml_ssh_init"
+external ssh_new : unit -> ssh_session = "libssh_ml_ssh_init"

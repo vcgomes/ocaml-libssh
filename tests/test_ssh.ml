@@ -9,11 +9,12 @@ let () =
   run "version is non-empty" (fun () ->
     assert (String.length (Ssh.version ()) > 0));
 
-  run "create does not raise" (fun () ->
-    let _s = Ssh.create () in ());
-
-  run "exec on unconnected session raises Failure" (fun () ->
-    let s = Ssh.create () in
-    match Ssh.Client.exec ~command:"echo hi" s with
-    | _ -> failwith "expected Failure, got a result"
+  run "create with connection refused raises Failure" (fun () ->
+    let opts = Ssh.Client.({ host = "localhost";
+                             log_level = SSH_LOG_NOLOG;
+                             port = 1;
+                             username = None;
+                             auth = Auto; }) in
+    match Ssh.create opts with
+    | _ -> failwith "expected Failure, got a session"
     | exception Failure _ -> ())

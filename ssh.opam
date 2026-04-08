@@ -9,10 +9,11 @@ license: "BSD-3-clause"
 homepage: "https://github.com/vcgomes/ocaml-libssh"
 bug-reports: "https://github.com/vcgomes/ocaml-libssh/issues"
 depends: [
-  "dune" {>= "2.0"}
+  "dune" {>= "2.7"}
+  "odoc" {with-doc}
 ]
 build: [
-  ["dune" "subst"] {pinned}
+  ["dune" "subst"] {dev}
   [
     "dune"
     "build"

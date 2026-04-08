@@ -248,6 +248,12 @@ CAMLprim value libssh_ml_ssh_connect(value opts, value sess_val)
   	       this_sess);
   caml_stat_free(hostname);
 
+  {
+    unsigned int uport = (unsigned int)port;
+    check_result(ssh_options_set(this_sess, SSH_OPTIONS_PORT, &uport),
+                 this_sess);
+  }
+
   check_result(ssh_options_set(this_sess, SSH_OPTIONS_LOG_VERBOSITY, &log_level),
   	       this_sess);
 
