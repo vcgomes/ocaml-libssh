@@ -38,8 +38,7 @@ let () =
     assert (r.Ssh.Client.status = Ssh.Client.Exited 0));
 
   check "to_lines splits stdout into lines" (fun () ->
-    let lines, status =
-      unwrap (Ssh.Client.(exec ~command:"printf 'a\nb\nc'" session |> to_lines))
+    let lines =
+      unwrap (Ssh.Client.(exec_out ~command:"printf 'a\nb\nc'" session |> to_lines))
     in
-    assert (lines = ["a"; "b"; "c"]);
-    assert (status = Ssh.Client.Exited 0))
+    assert (lines = ["a"; "b"; "c"]))

@@ -45,19 +45,31 @@ module Client : sig
     stderr  : string;   (** Standard error *)
   }
 
-  (** Execute a remote command.
-      Returns [Error msg] if the SSH channel operation itself fails. *)
+  (** Execute a remote command and return the full result including stderr and
+      exit status. Use when you need to inspect stderr or handle non-zero exits
+      yourself. *)
   val exec : command:string -> ssh_session -> (exec_result, string) result
+
+  (** Intermediate output type returned by [exec_out]: stdout and exit status,
+      without stderr. Pipe to [to_lines] or [to_string] to extract the result. *)
+  type run_out = {
+    run_stdout : string;
+    run_status : status;
+  }
+
+  (** Like [exec] but returns a [run_out] suitable for piping to [to_lines] or
+      [to_string]. Non-zero exit is deferred to those functions. *)
+  val exec_out : command:string -> ssh_session -> (run_out, string) result
 
   (** Copy a local file to the remote host.
       Returns [Error msg] if the source file does not exist or the transfer fails. *)
   val scp : src_path:string -> dest_path:string -> ssh_session -> (unit, string) result
 
-  (** Extract stdout and exit status from an [exec] result. *)
-  val to_string : (exec_result, string) result -> (string * status, string) result
+  (** Return stdout as a string. Returns [Error] if the command exited non-zero. *)
+  val to_string : (run_out, string) result -> (string, string) result
 
-  (** Split stdout into lines and return with exit status. *)
-  val to_lines : (exec_result, string) result -> (string list * status, string) result
+  (** Split stdout into lines. Returns [Error] if the command exited non-zero. *)
+  val to_lines : (run_out, string) result -> (string list, string) result
 
 end
 

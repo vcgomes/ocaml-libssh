@@ -44,6 +44,15 @@ module Client = struct
     | r                     -> Ok r
     | exception Failure msg -> Error msg
 
+  type run_out = {
+    run_stdout : string;
+    run_status : status;
+  }
+
+  let exec_out ~command session =
+    Result.map (fun r -> { run_stdout = r.stdout; run_status = r.status })
+      (exec ~command session)
+
   external unsafe_scp :
     string ->
     string ->
@@ -56,16 +65,21 @@ module Client = struct
     | ()                    -> Ok ()
     | exception Failure msg -> Error msg
 
+  let check_status o f =
+    match o.run_status with
+    | Exited 0   -> Ok (f o.run_stdout)
+    | Exited n   -> Error (Printf.sprintf "exited with %d" n)
+    | Signaled s -> Error (Printf.sprintf "signaled with %s" s)
+
   let to_string r =
-    Result.map (fun r -> (r.stdout, r.status)) r
+    Result.bind r (fun o -> check_status o (fun s -> s))
 
   let to_lines r =
-    Result.map (fun r ->
-      let lines = String.split_on_char '\n' r.stdout in
-      let lines = match List.rev lines with
+    Result.bind r (fun o ->
+      check_status o (fun s ->
+        let lines = String.split_on_char '\n' s in
+        match List.rev lines with
         | "" :: rest -> List.rev rest
-        | _ -> lines
-      in
-      (lines, r.status)) r
+        | _ -> lines))
 
 end
