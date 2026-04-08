@@ -41,4 +41,25 @@ let () =
     let lines =
       unwrap (Ssh.Client.(exec_out ~command:"printf 'a\nb\nc'" session |> to_lines))
     in
-    assert (lines = ["a"; "b"; "c"]))
+    assert (lines = ["a"; "b"; "c"]));
+
+  check "one session can be reused across exec and scp" (fun () ->
+    let content = "session reuse test\n" in
+    let src = Filename.temp_file "r_test_reuse_src" ".txt" in
+    let dst = Filename.temp_file "r_test_reuse_dst" ".txt" in
+    (* exec before scp *)
+    let r1 = unwrap (Ssh.Client.exec ~command:"echo before" session) in
+    (* scp *)
+    (let oc = open_out src in output_string oc content; close_out oc);
+    unwrap (Ssh.Client.scp ~src_path:src ~dest_path:dst session);
+    (* exec after scp, then exec to verify scp result *)
+    let r2 = unwrap (Ssh.Client.exec ~command:"echo after" session) in
+    let r3 = unwrap (Ssh.Client.exec ~command:("cat " ^ dst) session) in
+    Sys.remove src;
+    let _ = Ssh.Client.exec ~command:("rm -f " ^ dst) session in
+    assert (r1.Ssh.Client.stdout = "before\n");
+    assert (r1.Ssh.Client.status = Ssh.Client.Exited 0);
+    assert (r2.Ssh.Client.stdout = "after\n");
+    assert (r2.Ssh.Client.status = Ssh.Client.Exited 0);
+    assert (r3.Ssh.Client.stdout = content);
+    assert (r3.Ssh.Client.status = Ssh.Client.Exited 0))
