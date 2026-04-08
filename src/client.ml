@@ -39,7 +39,6 @@ module Client = struct
 
   let scp ~src_path ~dest_path h =
     if not @@ Sys.file_exists src_path then failwith "This file doesn't exist";
-    unsafe_scp src_path dest_path h;
-    print_endline "copied"
+    unsafe_scp src_path dest_path h
 
 end
