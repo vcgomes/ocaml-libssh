@@ -60,8 +60,8 @@ CAMLprim value libssh_ml_ssh_init(void)
   if (!this_sess) {
     caml_failwith("Couldn't allocate ssh session");
   }
-  ssh_ml_handle = caml_alloc_custom(&ssh_custom_ops, sizeof(&this_sess), 0, 1);
-  memcpy(Data_custom_val(ssh_ml_handle), this_sess, sizeof(&this_sess));
+  ssh_ml_handle = caml_alloc_custom(&ssh_custom_ops, sizeof(this_sess), 0, 1);
+  *(ssh_session *)Data_custom_val(ssh_ml_handle) = this_sess;
   CAMLreturn(ssh_ml_handle);
 }
 
@@ -180,7 +180,7 @@ CAMLprim value libssh_ml_ssh_exec(value command_val, value sess_val)
   if (strlen(command) != len) {
     caml_failwith("Problem copying string from OCaml to C");
   }
-  this_sess = (ssh_session)Data_custom_val(sess_val);
+  this_sess = *(ssh_session *)Data_custom_val(sess_val);
 
   struct result this_result = exec_remote_command(command, this_sess);
   caml_stat_free(command);
@@ -223,7 +223,7 @@ CAMLprim value libssh_ml_ssh_connect(value opts, value sess_val)
   size_t len;
   ssh_session this_sess;
 
-  this_sess = (ssh_session)Data_custom_val(sess_val);
+  this_sess = *(ssh_session *)Data_custom_val(sess_val);
   hostname_val = Field(opts, 0);
   username_val = Field(opts, 1);
   port_val = Field(opts, 2);
@@ -281,7 +281,7 @@ CAMLprim value libssh_ml_remote_shell(value produce, value consume, value sess_v
   CAMLparam3(produce, consume, sess_val);
   CAMLlocal1(exec_this);
 
-  ssh_session this_sess = (ssh_session)Data_custom_val(sess_val);
+  ssh_session this_sess = *(ssh_session *)Data_custom_val(sess_val);
   exec_this = caml_callback(produce, Val_unit);
   size_t len = caml_string_length(exec_this);
   char *copied = caml_stat_strdup(String_val(exec_this));
@@ -340,7 +340,7 @@ CAMLprim value libssh_ml_ssh_scp(value src_path,
     caml_failwith("Problem copying string from OCaml to C");
   } else len = 0;
 
-  this_sess = (ssh_session)sess;
+  this_sess = *(ssh_session *)Data_custom_val(sess);
   ssh_scp this_scp = prepare(this_sess);
   struct stat file_info;
   if (stat(s_path, &file_info) != 0) {
