@@ -37,7 +37,7 @@ module Client : sig
   val connect : options -> ssh_session -> unit
 
   (** Process exit status: normal exit with code, or killed by signal *)
-  type status = [ `Exited of int | `Signaled of string ]
+  type status = Exited of int | Signaled of string
 
   (** Result of executing a remote command *)
   type exec_result = {
