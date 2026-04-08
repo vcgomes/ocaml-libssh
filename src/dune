@@ -1,5 +1,5 @@
 (library
- (public_name libssh)
+ (public_name ssh)
  (modules common client server ssh)
   (foreign_stubs
   (language c)

@@ -7,6 +7,6 @@
 (maintainers "edgar.factorial@gmail.com")
 
 (package
- (name libssh)
+ (name ssh)
  (synopsis "libssh bindings for OCaml")
  (description "C bindings for the libssh library providing client and server support"))
