@@ -26,9 +26,6 @@ void clean_up_ssh_memory (value a_session)
 {
   CAMLparam1(a_session);
   printf("Finished\n");
-  /* ssh_session sess = (ssh_session)a_session; */
-  /* ssh_disconnect(sess); */
-  /* ssh_free(sess); */
   CAMLnoreturn;
 }
 
@@ -56,13 +53,10 @@ CAMLprim value libssh_ml_ssh_init(void)
   if (!this_sess) {
     caml_failwith("Couldn't allocate ssh session");
   }
-  // Last two values are for garbage collection tweaked, best to leave
-  // as just 0, 1
   ssh_ml_handle = caml_alloc_custom(&ssh_custom_ops, sizeof(&this_sess), 0, 1);
   memcpy(Data_custom_val(ssh_ml_handle), this_sess, sizeof(&this_sess));
   CAMLreturn(ssh_ml_handle);
 }
-
 
 void check_result(int r, ssh_session this_session)
 {
@@ -76,7 +70,6 @@ void check_result(int r, ssh_session this_session)
 
 static void verify_server(ssh_session this_sess)
 {
-  // Duh this needs to be better
   switch (ssh_session_is_known_server(this_sess)) {
   case SSH_SERVER_KNOWN_OK:
     break;
@@ -145,7 +138,7 @@ CAMLprim value libssh_ml_ssh_exec(value command_val, value sess_val)
   ssh_session this_sess;
 
   len = caml_string_length(command_val);
-  command = caml_strdup(String_val(command_val));
+  command = caml_stat_strdup(String_val(command_val));
   if (strlen(command) != len) {
     caml_failwith("Problem copying string from OCaml to C");
   }
@@ -175,13 +168,13 @@ CAMLprim value libssh_ml_ssh_connect(value opts, value sess_val)
   auth_val = Field(opts, 4);
 
   len = caml_string_length(hostname_val);
-  hostname = caml_strdup(String_val(hostname_val));
+  hostname = caml_stat_strdup(String_val(hostname_val));
 
   if (strlen(hostname) != len) {
     caml_failwith("Problem copying string from OCaml to C");
   } else len = 0;
 
-  username = caml_strdup(String_val(username_val));
+  username = caml_stat_strdup(String_val(username_val));
   len = caml_string_length(username_val);
 
   if (strlen(username) != len) {
@@ -228,7 +221,7 @@ CAMLprim value libssh_ml_remote_shell(value produce, value consume, value sess_v
   ssh_session this_sess = (ssh_session)Data_custom_val(sess_val);
   exec_this = caml_callback(produce, Val_unit);
   size_t len = caml_string_length(exec_this);
-  char *copied = caml_strdup(String_val(exec_this));
+  char *copied = caml_stat_strdup(String_val(exec_this));
   if (strlen(copied) != len) {
     caml_failwith("Problem copying string from OCaml to C");
   }
@@ -265,14 +258,14 @@ CAMLprim value libssh_ml_ssh_scp(value src_path,
   ssh_session this_sess;
 
   len = caml_string_length(src_path);
-  s_path = caml_strdup(String_val(src_path));
+  s_path = caml_stat_strdup(String_val(src_path));
 
   if (strlen(s_path) != len) {
     caml_failwith("Problem copying string from OCaml to C");
   } else len = 0;
 
   len = caml_string_length(dest_path);
-  d_path = caml_strdup(String_val(dest_path));
+  d_path = caml_stat_strdup(String_val(dest_path));
 
   if (strlen(d_path) != len) {
     caml_failwith("Problem copying string from OCaml to C");
