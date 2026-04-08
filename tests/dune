@@ -1,3 +1,7 @@
 (executable
  (name r_test)
  (libraries ssh))
+
+(test
+ (name test_ssh)
+ (libraries ssh))
