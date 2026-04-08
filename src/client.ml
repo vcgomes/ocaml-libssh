@@ -19,6 +19,14 @@ module Client = struct
                    log_level : log_level;
                    auth : auth; }
 
+  let default_options = {
+    host       = "";
+    username   = None;
+    port       = 22;
+    log_level  = SSH_LOG_NOLOG;
+    auth       = Auto;
+  }
+
   external connect_exn : options -> ssh_session -> unit = "libssh_ml_ssh_connect"
 
   type status = Exited of int | Signaled of string

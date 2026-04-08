@@ -10,11 +10,7 @@ let () =
     assert (String.length (Ssh.version ()) > 0));
 
   run "create with connection refused raises Failure" (fun () ->
-    let opts = Ssh.Client.({ host = "localhost";
-                             log_level = SSH_LOG_NOLOG;
-                             port = 1;
-                             username = None;
-                             auth = Auto; }) in
+    let opts = { Ssh.Client.default_options with host = "localhost"; port = 1 } in
     match Ssh.create opts with
     | _ -> failwith "expected Failure, got a session"
     | exception Failure _ -> ())

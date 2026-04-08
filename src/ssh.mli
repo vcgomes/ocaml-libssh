@@ -30,6 +30,11 @@ module Client : sig
                    log_level : log_level;
                    auth : auth; }
 
+  (** Defaults: port 22, no username override, no logging, public-key auth.
+      Use record update to override only what you need:
+      [{ default_options with host = "myserver"; auth = Password "s3cr3t" }] *)
+  val default_options : options
+
   (** Process exit status: normal exit with code, or killed by signal *)
   type status = Exited of int | Signaled of string
 

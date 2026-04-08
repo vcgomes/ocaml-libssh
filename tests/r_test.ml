@@ -10,11 +10,7 @@ let check name f =
     exit 1
 
 let () =
-  let opts = Ssh.Client.({ host = "localhost";
-                           log_level = SSH_LOG_NOLOG;
-                           port = 22;
-                           username = None;
-                           auth = Auto; }) in
+  let opts = { Ssh.Client.default_options with host = "localhost" } in
   let session = Ssh.create opts in
 
   check "uname writes to stdout, not stderr" (fun () ->
