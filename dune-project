@@ -1,4 +1,5 @@
 (lang dune 2.7)
+(name ssh)
 (cram enable)
 (generate_opam_files)
 
