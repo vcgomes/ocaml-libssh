@@ -30,12 +30,29 @@ let () =
     let src = Filename.temp_file "r_test_src" ".txt" in
     let dst = Filename.temp_file "r_test_dst" ".txt" in
     (let oc = open_out src in output_string oc content; close_out oc);
-    unwrap (Ssh.Client.scp ~src_path:src ~dest_path:dst session);
+    unwrap (Ssh.Client.scp_to ~src_path:src ~dest_path:dst session);
     let r = unwrap (Ssh.Client.exec ~command:("cat " ^ dst) session) in
     Sys.remove src;
     let _ = Ssh.Client.exec ~command:("rm -f " ^ dst) session in
     assert (r.Ssh.Client.stdout = content);
     assert (r.Ssh.Client.status = Ssh.Client.Exited 0));
+
+  check "scp_from: file content arrives intact on the local side" (fun () ->
+    let content = "hello from scp_from test\n" in
+    let src = Filename.temp_file "r_test_from_src" ".txt" in
+    let remote = Filename.temp_file "r_test_from_remote" ".txt" in
+    let local = Filename.temp_file "r_test_from_local" ".txt" in
+    (* create a known file, push it to remote, then pull it back *)
+    (let oc = open_out src in output_string oc content; close_out oc);
+    unwrap (Ssh.Client.scp_to ~src_path:src ~dest_path:remote session);
+    unwrap (Ssh.Client.scp_from ~remote_path:remote ~local_path:local session);
+    let ic = open_in local in
+    let got = In_channel.input_all ic in
+    close_in ic;
+    Sys.remove src;
+    Sys.remove local;
+    let _ = Ssh.Client.exec ~command:("rm -f " ^ remote) session in
+    assert (got = content));
 
   check "to_lines splits stdout into lines" (fun () ->
     let lines =
@@ -51,7 +68,7 @@ let () =
     let r1 = unwrap (Ssh.Client.exec ~command:"echo before" session) in
     (* scp *)
     (let oc = open_out src in output_string oc content; close_out oc);
-    unwrap (Ssh.Client.scp ~src_path:src ~dest_path:dst session);
+    unwrap (Ssh.Client.scp_to ~src_path:src ~dest_path:dst session);
     (* exec after scp, then exec to verify scp result *)
     let r2 = unwrap (Ssh.Client.exec ~command:"echo after" session) in
     let r3 = unwrap (Ssh.Client.exec ~command:("cat " ^ dst) session) in

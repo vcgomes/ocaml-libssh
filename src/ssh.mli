@@ -63,7 +63,11 @@ module Client : sig
 
   (** Copy a local file to the remote host.
       Returns [Error msg] if the source file does not exist or the transfer fails. *)
-  val scp : src_path:string -> dest_path:string -> ssh_session -> (unit, string) result
+  val scp_to : src_path:string -> dest_path:string -> ssh_session -> (unit, string) result
+
+  (** Copy a file from the remote host to a local path.
+      Returns [Error msg] if the remote file does not exist or the transfer fails. *)
+  val scp_from : remote_path:string -> local_path:string -> ssh_session -> (unit, string) result
 
   (** Return stdout as a string. Returns [Error] if the command exited non-zero. *)
   val to_string : (run_out, string) result -> (string, string) result

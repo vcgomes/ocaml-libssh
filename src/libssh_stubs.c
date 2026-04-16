@@ -374,3 +374,65 @@ CAMLprim value libssh_ml_ssh_scp(value src_path, value dest_path, value sess)
 
   CAMLreturn(Val_unit);
 }
+
+CAMLprim value libssh_ml_ssh_scp_from(value remote_path, value local_path, value sess)
+{
+  CAMLparam3(remote_path, local_path, sess);
+  char *r_path, *l_path;
+  ssh_session this_sess;
+  sftp_session sftp;
+  sftp_file remote;
+  FILE *f;
+  char buf[BUFFERSIZE];
+  ssize_t nread;
+
+  r_path = caml_stat_strdup(String_val(remote_path));
+  l_path = caml_stat_strdup(String_val(local_path));
+  this_sess = *(ssh_session *)Data_custom_val(sess);
+
+  sftp = sftp_new(this_sess);
+  if (!sftp) {
+    caml_stat_free(r_path); caml_stat_free(l_path);
+    caml_failwith(ssh_get_error(this_sess));
+  }
+
+  if (sftp_init(sftp) != SSH_OK) {
+    sftp_free(sftp); caml_stat_free(r_path); caml_stat_free(l_path);
+    caml_failwith(ssh_get_error(this_sess));
+  }
+
+  remote = sftp_open(sftp, r_path, O_RDONLY, 0);
+  if (!remote) {
+    sftp_free(sftp); caml_stat_free(r_path); caml_stat_free(l_path);
+    caml_failwith(ssh_get_error(this_sess));
+  }
+
+  f = fopen(l_path, "wb");
+  if (!f) {
+    sftp_close(remote); sftp_free(sftp);
+    caml_stat_free(r_path); caml_stat_free(l_path);
+    caml_failwith("Cannot open local file for writing");
+  }
+
+  while ((nread = sftp_read(remote, buf, sizeof(buf))) > 0) {
+    if (fwrite(buf, 1, (size_t)nread, f) != (size_t)nread) {
+      fclose(f); sftp_close(remote); sftp_free(sftp);
+      caml_stat_free(r_path); caml_stat_free(l_path);
+      caml_failwith("fwrite: short write");
+    }
+  }
+
+  if (nread < 0) {
+    fclose(f); sftp_close(remote); sftp_free(sftp);
+    caml_stat_free(r_path); caml_stat_free(l_path);
+    caml_failwith("sftp_read failed");
+  }
+
+  fclose(f);
+  sftp_close(remote);
+  sftp_free(sftp);
+  caml_stat_free(r_path);
+  caml_stat_free(l_path);
+
+  CAMLreturn(Val_unit);
+}

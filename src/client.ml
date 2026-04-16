@@ -53,15 +53,26 @@ module Client = struct
     Result.map (fun r -> { run_stdout = r.stdout; run_status = r.status })
       (exec ~command session)
 
-  external unsafe_scp :
+  external unsafe_scp_to :
     string ->
     string ->
     ssh_session ->
     unit = "libssh_ml_ssh_scp"
 
-  let scp ~src_path ~dest_path h =
+  let scp_to ~src_path ~dest_path h =
     if not @@ Sys.file_exists src_path then Error "This file doesn't exist"
-    else match unsafe_scp src_path dest_path h with
+    else match unsafe_scp_to src_path dest_path h with
+    | ()                    -> Ok ()
+    | exception Failure msg -> Error msg
+
+  external unsafe_scp_from :
+    string ->
+    string ->
+    ssh_session ->
+    unit = "libssh_ml_ssh_scp_from"
+
+  let scp_from ~remote_path ~local_path h =
+    match unsafe_scp_from remote_path local_path h with
     | ()                    -> Ok ()
     | exception Failure msg -> Error msg
 
