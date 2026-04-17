@@ -85,7 +85,7 @@ static void verify_server(ssh_session this_sess)
   case SSH_SERVER_KNOWN_OK:
     break;
   default:
-    printf("Otherwise\n");
+    break;
   }
 }
 
